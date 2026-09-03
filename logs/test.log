@@ -1,0 +1,5 @@
+2026-09-03 18:00:01 - INFO - Application started
+2026-09-03 18:00:05 - INFO - User request received
+2026-09-03 18:00:10 - WARNING - Disk space is running low
+2026-09-03 18:00:15 - ERROR - Database connection failed
+2026-09-03 18:00:20 - INFO - Application stopped
