@@ -1,5 +1,6 @@
 import streamlit as st
 from log_analyzer import analyze_log
+from ai_analyzer import analyze_with_ai
 
 st.title("DevPilot")
 st.write("AI-powered DevOps Troubleshooting Assistant")
@@ -33,6 +34,13 @@ if st.button("Analyze"):
                 st.write(warning)
         else:
             st.info("No Warnings Found")
+
+        st.subheader("🤖 AI Troubleshooting Analysis")
+
+        with st.spinner("AI is analyzing the log..."):
+            ai_result = analyze_with_ai(log_content)
+
+        st.write(ai_result)
 
     else:
         st.warning("Please upload a log file.")
