@@ -1,0 +1,6 @@
+2026-09-29 19:30:01 INFO Application started
+2026-09-29 19:30:03 INFO Loading configuration
+2026-09-29 19:30:05 WARNING Database connection is taking longer than expected
+2026-09-29 19:30:08 ERROR Database connection failed
+2026-09-29 19:30:08 ERROR Unable to connect to database server
+2026-09-29 19:30:09 INFO Application stopped
