@@ -62,17 +62,31 @@ function App() {
         setResult(data);
       } else {
         setResult({
+          problem_type: "Other",
+          severity: "Unknown",
           analysis: "Something went wrong.",
-          next_step: data.error,
+          likely_causes: [],
+          recommended_fixes: [],
+          next_step: data.error || "Unable to analyze the log.",
           plan: [],
+          total_lines: 0,
+          error_count: 0,
+          warning_count: 0,
         });
       }
     } catch (error) {
       setResult({
+        problem_type: "Other",
+        severity: "Unknown",
         analysis: "Unable to connect to DevPilot backend.",
+        likely_causes: [],
+        recommended_fixes: [],
         next_step:
           "Make sure the Flask backend is running on port 5000.",
         plan: [],
+        total_lines: 0,
+        error_count: 0,
+        warning_count: 0,
       });
     }
 
@@ -86,7 +100,7 @@ function App() {
       <header className="navbar">
 
         <div className="logo">
-          ⚡ DevPilot
+          DevPilot
         </div>
 
         <div className="status">
@@ -154,7 +168,7 @@ function App() {
           <div className="upload-box">
 
             <div className="upload-icon">
-              📄
+              File
             </div>
 
             <h3>
@@ -195,7 +209,7 @@ function App() {
 
             {loading
               ? "Analyzing..."
-              : "🔍 Analyze Log"}
+              : "Analyze Log"}
 
           </button>
 
@@ -212,66 +226,218 @@ function App() {
             </h2>
 
 
-            {/* Analysis */}
-            <h3>
-              Analysis
-            </h3>
+            {/* Problem Type + Severity */}
+            <div className="result-summary">
 
-            <p>
-              {result.analysis}
-            </p>
+              <div className="summary-box">
+
+                <span>
+                  Problem Type
+                </span>
+
+                <strong>
+                  {result.problem_type || "Other"}
+                </strong>
+
+              </div>
+
+
+              <div className="summary-box">
+
+                <span>
+                  Severity
+                </span>
+
+                <strong
+                  className={`severity ${
+                    String(result.severity || "")
+                      .toLowerCase()
+                  }`}
+                >
+                  {result.severity || "Unknown"}
+                </strong>
+
+              </div>
+
+            </div>
+
+
+            {/* Main Problem */}
+            <div className="result-section">
+
+              <h3>
+                Main Problem
+              </h3>
+
+              <p>
+                {result.analysis ||
+                  "No problem description available."}
+              </p>
+
+            </div>
+
+
+            {/* Likely Causes */}
+            <div className="result-section">
+
+              <h3>
+                Likely Causes
+              </h3>
+
+              {result.likely_causes?.length > 0 ? (
+
+                <ul>
+
+                  {result.likely_causes.map(
+                    (cause, index) => (
+                      <li key={index}>
+                        {cause}
+                      </li>
+                    )
+                  )}
+
+                </ul>
+
+              ) : (
+
+                <p>
+                  No specific cause identified.
+                </p>
+
+              )}
+
+            </div>
+
+
+            {/* Recommended Fixes */}
+            <div className="result-section">
+
+              <h3>
+                Recommended Fixes
+              </h3>
+
+              {result.recommended_fixes?.length > 0 ? (
+
+                <ol>
+
+                  {result.recommended_fixes.map(
+                    (fix, index) => (
+                      <li key={index}>
+                        {fix}
+                      </li>
+                    )
+                  )}
+
+                </ol>
+
+              ) : (
+
+                <p>
+                  No specific fix was provided.
+                </p>
+
+              )}
+
+            </div>
 
 
             {/* Next Step */}
-            <h3>
-              Next Step
-            </h3>
+            <div className="result-section">
 
-            <p>
-              {result.next_step}
-            </p>
+              <h3>
+                Next Step
+              </h3>
+
+              <p>
+                {result.next_step ||
+                  "No next step available."}
+              </p>
+
+            </div>
 
 
             {/* Troubleshooting Plan */}
-            <h3>
-              Troubleshooting Plan
-            </h3>
+            <div className="result-section">
 
-            <ul>
+              <h3>
+                Troubleshooting Plan
+              </h3>
 
-              {result.plan?.map(
-                (step, index) => (
-                  <li key={index}>
-                    {step}
-                  </li>
-                )
+              {result.plan?.length > 0 ? (
+
+                <ol>
+
+                  {result.plan.map(
+                    (step, index) => (
+                      <li key={index}>
+                        {step}
+                      </li>
+                    )
+                  )}
+
+                </ol>
+
+              ) : (
+
+                <p>
+                  No troubleshooting plan available.
+                </p>
+
               )}
 
-            </ul>
+            </div>
 
 
             {/* Log Statistics */}
-            {(result.total_lines !== undefined) && (
+            <div className="result-section">
 
-              <>
+              <h3>
+                Log Statistics
+              </h3>
 
-                <h3>
-                  Log Statistics
-                </h3>
+              <div className="statistics">
 
-                <p>
-                  Total Lines: {result.total_lines}
-                  <br />
+                <div className="stat-box">
 
-                  Errors: {result.error_count}
-                  <br />
+                  <strong>
+                    {result.total_lines ?? 0}
+                  </strong>
 
-                  Warnings: {result.warning_count}
-                </p>
+                  <span>
+                    Total Lines
+                  </span>
 
-              </>
+                </div>
 
-            )}
+
+                <div className="stat-box">
+
+                  <strong>
+                    {result.error_count ?? 0}
+                  </strong>
+
+                  <span>
+                    Errors
+                  </span>
+
+                </div>
+
+
+                <div className="stat-box">
+
+                  <strong>
+                    {result.warning_count ?? 0}
+                  </strong>
+
+                  <span>
+                    Warnings
+                  </span>
+
+                </div>
+
+              </div>
+
+            </div>
 
           </section>
 
