@@ -11,6 +11,7 @@ COPY backend/ ./backend/
 COPY backend/ ./
 COPY app/ ./app/
 COPY logs/ ./logs/
+COPY agent/ ./agent/
 
 EXPOSE 5000
 

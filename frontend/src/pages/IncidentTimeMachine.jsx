@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Clock,
   Activity,
@@ -9,8 +10,10 @@ import {
   Bot,
   Zap,
   Filter,
-  Target
+  Target,
+  Server
 } from "lucide-react";
+import ServerSelector from "../components/ServerSelector";
 import {
   getIncidents,
   getIncidentById,
@@ -166,6 +169,10 @@ function MetricsChart({ metrics }) {
 }
 
 export default function IncidentTimeMachine() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const serverIdParam = searchParams.get("server_id");
+  const [selectedServerId, setSelectedServerId] = useState(serverIdParam || "all");
+
   const [incidents, setIncidents] = useState([]);
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedId, setSelectedId] = useState(null);
@@ -184,12 +191,24 @@ export default function IncidentTimeMachine() {
   const [error, setError] = useState("");
   const [timelineFilters, setTimelineFilters] = useState({ event_type: "", severity: "" });
 
+  // Sync state if url search params change
+  useEffect(() => {
+    if (serverIdParam && serverIdParam !== selectedServerId) {
+      setSelectedServerId(serverIdParam);
+    }
+  }, [serverIdParam]);
+
   // Load incidents list
-  const refreshIncidents = useCallback(async (filterValue = statusFilter) => {
+  const refreshIncidents = useCallback(async (filterValue = statusFilter, srvId = selectedServerId) => {
     setLoadingIncidents(true);
     setError("");
     try {
-      const data = await getIncidents(filterValue === "all" ? null : filterValue, 100);
+      const targetServer = srvId === "all" ? null : srvId;
+      const data = await getIncidents(
+        filterValue === "all" ? null : filterValue,
+        100,
+        targetServer
+      );
       const list = data.incidents || [];
       setIncidents(list);
       setSelectedId((curr) => {
@@ -204,7 +223,7 @@ export default function IncidentTimeMachine() {
     } finally {
       setLoadingIncidents(false);
     }
-  }, [statusFilter]);
+  }, [statusFilter, selectedServerId]);
 
   // Initial and on-filter-change incident loading
   useEffect(() => {
@@ -212,7 +231,12 @@ export default function IncidentTimeMachine() {
 
     const runFetch = async () => {
       try {
-        const data = await getIncidents(statusFilter === "all" ? null : statusFilter, 100);
+        const targetServer = selectedServerId === "all" ? null : selectedServerId;
+        const data = await getIncidents(
+          statusFilter === "all" ? null : statusFilter,
+          100,
+          targetServer
+        );
         if (!ignore) {
           const list = data.incidents || [];
           setIncidents(list);
@@ -389,14 +413,28 @@ export default function IncidentTimeMachine() {
         </div>
 
         <div className="header-actions">
+          {/* Server Selector Filter */}
+          <ServerSelector
+            allowAll={true}
+            selectedServerId={selectedServerId}
+            onSelectServer={(newId) => {
+              setSelectedServerId(newId);
+              setSearchParams(newId === "all" ? {} : { server_id: newId });
+              refreshIncidents(statusFilter, newId);
+            }}
+          />
+
           <div className="control-pill">
             <Filter size={14} />
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                refreshIncidents(e.target.value, selectedServerId);
+              }}
               className="incident-select"
             >
-              <option value="all">All Incidents</option>
+              <option value="all">All Statuses</option>
               <option value="active">Active</option>
               <option value="resolved">Resolved</option>
             </select>
@@ -404,7 +442,7 @@ export default function IncidentTimeMachine() {
 
           <button
             className="btn btn-secondary btn-sm"
-            onClick={() => refreshIncidents(statusFilter)}
+            onClick={() => refreshIncidents(statusFilter, selectedServerId)}
             disabled={loadingIncidents}
           >
             <RefreshCw size={14} className={loadingIncidents ? "spin" : ""} />
@@ -483,6 +521,7 @@ export default function IncidentTimeMachine() {
                   <div className="incident-list-title">{inc.title}</div>
                   <div className="incident-list-meta">
                     <span>{inc.id}</span>
+                    {inc.server_id && <span className="tag" style={{ fontSize: "0.7rem", padding: "1px 6px" }}>{inc.server_id}</span>}
                     <span>{formatEpoch(inc.start_epoch)}</span>
                   </div>
                 </button>
@@ -521,6 +560,10 @@ export default function IncidentTimeMachine() {
                   <div className="incident-meta-item">
                     <span className="meta-label">Incident ID</span>
                     <span className="meta-value">{incident.id}</span>
+                  </div>
+                  <div className="incident-meta-item">
+                    <span className="meta-label">Server</span>
+                    <span className="meta-value" style={{ fontWeight: 600 }}>{incident.server_id || "SRV-LOCAL-001"}</span>
                   </div>
                   <div className="incident-meta-item">
                     <span className="meta-label">Status</span>

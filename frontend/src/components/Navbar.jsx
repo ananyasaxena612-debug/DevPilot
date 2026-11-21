@@ -12,14 +12,21 @@ import {
   Zap,
   Server,
   Radio,
-  Clock
+  Clock,
+  User,
+  LogOut,
+  LogIn
 } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
+import { useAuth } from "../context/AuthContext";
 import { getBackendStatus } from "../services/api";
+import AuthModal from "./AuthModal";
 
 export default function Navbar() {
   const { theme, toggleTheme } = useTheme();
+  const { user, isAuthenticated, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
   const [aiOnline, setAiOnline] = useState(false);
   const [backendOnline, setBackendOnline] = useState(false);
 
@@ -101,6 +108,16 @@ export default function Navbar() {
           </NavLink>
 
           <NavLink
+            to="/servers"
+            className={({ isActive }) =>
+              `nav-item ${isActive ? "nav-item-active" : ""}`
+            }
+          >
+            <Server size={17} />
+            <span>Servers</span>
+          </NavLink>
+
+          <NavLink
             to="/monitoring"
             className={({ isActive }) =>
               `nav-item ${isActive ? "nav-item-active" : ""}`
@@ -141,7 +158,7 @@ export default function Navbar() {
           </NavLink>
         </nav>
 
-        {/* Right Actions: System Status & Theme Toggle */}
+        {/* Right Actions: System Status, User Auth & Theme Toggle */}
         <div className="navbar-right desktop-only">
           {/* Status Badges */}
           <div className="status-indicators">
@@ -161,6 +178,32 @@ export default function Navbar() {
               <span>{backendOnline ? "Backend Live" : "Backend Offline"}</span>
             </div>
           </div>
+
+          {/* User Auth Profile Badge */}
+          {isAuthenticated && user ? (
+            <div className="navbar-user-badge">
+              <User size={15} className="user-icon" />
+              <span className="user-name" title={user.email}>{user.name || "Operator"}</span>
+              <button
+                type="button"
+                className="btn-logout-compact"
+                onClick={logout}
+                title="Log Out"
+                aria-label="Log Out"
+              >
+                <LogOut size={14} />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-sm btn-outline btn-auth-signin"
+              onClick={() => setAuthModalOpen(true)}
+            >
+              <LogIn size={15} />
+              <span>Sign In</span>
+            </button>
+          )}
 
           {/* Theme Switcher Button */}
           <button
@@ -209,77 +252,113 @@ export default function Navbar() {
           <div className="mobile-menu-backdrop mobile-only" onClick={closeMobileMenu} />
           <div className="mobile-menu-drawer mobile-only">
             <nav className="mobile-nav-links">
-            <NavLink
-              to="/"
-              end
-              className={({ isActive }) =>
-                `mobile-nav-item ${isActive ? "mobile-nav-item-active" : ""}`
-              }
-              onClick={closeMobileMenu}
-            >
-              <Home size={18} />
-              <span>Home</span>
-            </NavLink>
+              <NavLink
+                to="/"
+                end
+                className={({ isActive }) =>
+                  `mobile-nav-item ${isActive ? "mobile-nav-item-active" : ""}`
+                }
+                onClick={closeMobileMenu}
+              >
+                <Home size={18} />
+                <span>Home</span>
+              </NavLink>
 
-            <NavLink
-              to="/monitoring"
-              className={({ isActive }) =>
-                `mobile-nav-item ${isActive ? "mobile-nav-item-active" : ""}`
-              }
-              onClick={closeMobileMenu}
-            >
-              <Activity size={18} />
-              <span>System Monitoring</span>
-            </NavLink>
+              <NavLink
+                to="/servers"
+                className={({ isActive }) =>
+                  `mobile-nav-item ${isActive ? "mobile-nav-item-active" : ""}`
+                }
+                onClick={closeMobileMenu}
+              >
+                <Server size={18} />
+                <span>Monitored Servers</span>
+              </NavLink>
 
-            <NavLink
-              to="/docker"
-              className={({ isActive }) =>
-                `mobile-nav-item ${isActive ? "mobile-nav-item-active" : ""}`
-              }
-              onClick={closeMobileMenu}
-            >
-              <Box size={18} />
-              <span>Docker Monitoring</span>
-            </NavLink>
+              <NavLink
+                to="/monitoring"
+                className={({ isActive }) =>
+                  `mobile-nav-item ${isActive ? "mobile-nav-item-active" : ""}`
+                }
+                onClick={closeMobileMenu}
+              >
+                <Activity size={18} />
+                <span>System Monitoring</span>
+              </NavLink>
 
-            <NavLink
-              to="/analyze"
-              className={({ isActive }) =>
-                `mobile-nav-item ${isActive ? "mobile-nav-item-active" : ""}`
-              }
-              onClick={closeMobileMenu}
-            >
-              <FileSearch size={18} />
-              <span>AI Log Analysis</span>
-            </NavLink>
+              <NavLink
+                to="/docker"
+                className={({ isActive }) =>
+                  `mobile-nav-item ${isActive ? "mobile-nav-item-active" : ""}`
+                }
+                onClick={closeMobileMenu}
+              >
+                <Box size={18} />
+                <span>Docker Monitoring</span>
+              </NavLink>
 
-            <NavLink
-              to="/incidents"
-              className={({ isActive }) =>
-                `mobile-nav-item ${isActive ? "mobile-nav-item-active" : ""}`
-              }
-              onClick={closeMobileMenu}
-            >
-              <Clock size={18} />
-              <span>Incident Time Machine</span>
-            </NavLink>
-          </nav>
+              <NavLink
+                to="/analyze"
+                className={({ isActive }) =>
+                  `mobile-nav-item ${isActive ? "mobile-nav-item-active" : ""}`
+                }
+                onClick={closeMobileMenu}
+              >
+                <FileSearch size={18} />
+                <span>AI Log Analysis</span>
+              </NavLink>
 
-          <div className="mobile-status-section">
-            <div className={`status-pill ${aiOnline ? "pill-online" : "pill-offline"}`}>
-              <span className="status-pulse-dot" />
-              <span>{aiOnline ? "AI Engine Online" : "AI Engine Offline"}</span>
+              <NavLink
+                to="/incidents"
+                className={({ isActive }) =>
+                  `mobile-nav-item ${isActive ? "mobile-nav-item-active" : ""}`
+                }
+                onClick={closeMobileMenu}
+              >
+                <Clock size={18} />
+                <span>Incident Time Machine</span>
+              </NavLink>
+            </nav>
+
+            <div className="mobile-auth-section" style={{ padding: "1rem", borderTop: "1px solid var(--border-color)" }}>
+              {isAuthenticated && user ? (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: "0.9rem", color: "var(--text-primary)" }}>{user.name}</span>
+                  <button type="button" className="btn btn-sm btn-outline" onClick={logout}>
+                    <LogOut size={14} /> Log Out
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-primary btn-block"
+                  onClick={() => {
+                    closeMobileMenu();
+                    setAuthModalOpen(true);
+                  }}
+                  style={{ width: "100%", justifyContent: "center" }}
+                >
+                  <LogIn size={16} /> Sign In
+                </button>
+              )}
             </div>
-            <div className={`status-pill ${backendOnline ? "pill-online" : "pill-offline"}`}>
-              <Server size={14} />
-              <span>{backendOnline ? "Backend Live" : "Backend Offline"}</span>
+
+            <div className="mobile-status-section">
+              <div className={`status-pill ${aiOnline ? "pill-online" : "pill-offline"}`}>
+                <span className="status-pulse-dot" />
+                <span>{aiOnline ? "AI Engine Online" : "AI Engine Offline"}</span>
+              </div>
+              <div className={`status-pill ${backendOnline ? "pill-online" : "pill-offline"}`}>
+                <Server size={14} />
+                <span>{backendOnline ? "Backend Live" : "Backend Offline"}</span>
+              </div>
             </div>
           </div>
-        </div>
-      </>
-    )}
-  </header>
+        </>
+      )}
+
+      {/* Auth Modal */}
+      <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
+    </header>
   );
 }
-

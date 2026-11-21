@@ -46,6 +46,7 @@ def investigate_incident(incident_id):
         raise ValueError(f"Incident {incident_id} not found.")
 
     # 1. Fetch incident time window events
+    server_id = incident.get("server_id")
     start_epoch = incident.get("start_epoch") or 0.0
     end_epoch = incident.get("end_epoch") or (start_epoch + 600.0)
 
@@ -55,11 +56,13 @@ def investigate_incident(incident_id):
 
     events = get_timeline_events(
         incident_id=incident_id,
+        server_id=server_id,
         limit=200
     )
     if not events:
-        # If no directly linked events, query all events in the time window
+        # If no directly linked events, query all events in the time window for this server
         events = get_timeline_events(
+            server_id=server_id,
             start_epoch=window_start,
             end_epoch=window_end,
             limit=150
@@ -67,6 +70,7 @@ def investigate_incident(incident_id):
 
     # 2. Fetch metrics history for the same window
     metrics = get_system_metrics_history(
+        server_id=server_id,
         start_epoch=window_start,
         end_epoch=window_end,
         limit=200

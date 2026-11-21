@@ -1,0 +1,14 @@
+{
+  "endpoint": "http://127.0.0.1:5000",
+  "server_id": "srv_example1234",
+  "api_key": "dpk_sample_token_replace_me",
+  "collection_interval": 10,
+  "docker_enabled": true,
+  "log_paths": [
+    "/var/log/syslog",
+    "/var/log/messages",
+    "/var/log/nginx/error.log"
+  ],
+  "max_spool_size": 120
+}
+

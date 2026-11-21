@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Box,
   Play,
@@ -11,9 +12,13 @@ import {
   CheckCircle,
   HelpCircle
 } from "lucide-react";
+import ServerSelector from "../components/ServerSelector";
 import { getDockerMetrics } from "../services/api";
 
 export default function DockerMonitoring() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const serverId = searchParams.get("server_id") || "SRV-LOCAL-001";
+
   const [dockerData, setDockerData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -26,7 +31,7 @@ export default function DockerMonitoring() {
   const fetchDocker = useCallback(async (isManual = false) => {
     if (isManual) setIsRefreshing(true);
     try {
-      const data = await getDockerMetrics();
+      const data = await getDockerMetrics(serverId);
       setDockerData(data);
       setError("");
       setLastUpdated(new Date());
@@ -41,14 +46,15 @@ export default function DockerMonitoring() {
         setTimeout(() => setIsRefreshing(false), 400);
       }
     }
-  }, []);
+  }, [serverId]);
 
   useEffect(() => {
     let ignore = false;
 
     const runInitialFetch = async () => {
       try {
-        const data = await getDockerMetrics();
+        setLoading(true);
+        const data = await getDockerMetrics(serverId);
         if (!ignore) {
           setDockerData(data);
           setError("");
@@ -82,7 +88,7 @@ export default function DockerMonitoring() {
       ignore = true;
       clearInterval(intervalId);
     };
-  }, [fetchDocker, autoRefreshEnabled]);
+  }, [fetchDocker, autoRefreshEnabled, serverId]);
 
   const containers = useMemo(() => dockerData?.containers || [], [dockerData]);
 
@@ -137,6 +143,12 @@ export default function DockerMonitoring() {
         </div>
 
         <div className="header-actions">
+          {/* Target Server Dropdown */}
+          <ServerSelector
+            selectedServerId={serverId}
+            onSelectServer={(newId) => setSearchParams({ server_id: newId })}
+          />
+
           <button
             className={`control-pill ${autoRefreshEnabled ? "active-pill" : ""}`}
             onClick={() => setAutoRefreshEnabled(!autoRefreshEnabled)}

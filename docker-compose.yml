@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: devpilot-backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - DEVPILOT_DB_PATH=/app/backend/devpilot_history.db
+      - DEVPILOT_SECRET_KEY=${DEVPILOT_SECRET_KEY:?Set it in .env}
+      - OLLAMA_URL=http://ollama:11434/api/generate
+      - DEVPILOT_CPU_THRESHOLD=85.0
+      - DEVPILOT_MEMORY_THRESHOLD=85.0
+      - DEVPILOT_DISK_THRESHOLD=90.0
+      - DEVPILOT_COLLECT_INTERVAL=5.0
+    volumes:
+      - devpilot-data:/app/backend
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - devpilot-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: devpilot-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "5173:80"
+    depends_on:
+      - backend
+    networks:
+      - devpilot-net
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: devpilot-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    networks:
+      - devpilot-net
+
+volumes:
+  devpilot-data:
+  ollama-models:
+
+networks:
+  devpilot-net:
+    driver: bridge
+

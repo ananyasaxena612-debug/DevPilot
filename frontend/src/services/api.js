@@ -3,18 +3,45 @@ export const API_BASE_URL =
   (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_URL) ||
   "http://127.0.0.1:5000";
 
+// Token storage key
+const TOKEN_KEY = "devpilot_token";
+
+export function getStoredToken() {
+  try {
+    return localStorage.getItem(TOKEN_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+export function setStoredToken(token) {
+  try {
+    if (token) {
+      localStorage.setItem(TOKEN_KEY, token);
+    } else {
+      localStorage.removeItem(TOKEN_KEY);
+    }
+  } catch {
+    // ignore storage exceptions
+  }
+}
+
 /**
- * Robust JSON fetcher with clear diagnostics for HTML error pages and network failures
+ * Robust JSON fetcher with clear diagnostics for HTML error pages, auth headers, and network failures
  */
 async function safeJsonFetch(url, options = {}) {
   let response;
+  const token = getStoredToken();
+  const headers = {
+    Accept: "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(options.headers || {}),
+  };
+
   try {
     response = await fetch(url, {
       ...options,
-      headers: {
-        Accept: "application/json",
-        ...(options.headers || {}),
-      },
+      headers,
     });
   } catch (err) {
     throw new Error(
@@ -62,6 +89,92 @@ async function safeJsonFetch(url, options = {}) {
   return data;
 }
 
+// --------------------------------------------------
+// AUTHENTICATION API
+// --------------------------------------------------
+
+export async function loginUser(email, password) {
+  const data = await safeJsonFetch(`${API_BASE_URL}/api/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  if (data?.token) {
+    setStoredToken(data.token);
+  }
+  return data;
+}
+
+export async function registerUser(email, password, name) {
+  const data = await safeJsonFetch(`${API_BASE_URL}/api/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password, name }),
+  });
+  if (data?.token) {
+    setStoredToken(data.token);
+  }
+  return data;
+}
+
+export async function getCurrentUser() {
+  return safeJsonFetch(`${API_BASE_URL}/api/auth/me`);
+}
+
+export function logoutUser() {
+  setStoredToken("");
+}
+
+// --------------------------------------------------
+// SERVER MANAGEMENT API
+// --------------------------------------------------
+
+export async function getServers() {
+  return safeJsonFetch(`${API_BASE_URL}/api/servers`);
+}
+
+export async function getServerById(serverId) {
+  return safeJsonFetch(`${API_BASE_URL}/api/servers/${serverId}`);
+}
+
+export async function createServer({ name, hostname = "", ip_address = "", os_info = "Linux" }) {
+  return safeJsonFetch(`${API_BASE_URL}/api/servers`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, hostname, ip_address, os_info }),
+  });
+}
+
+export async function updateServer(serverId, updates) {
+  return safeJsonFetch(`${API_BASE_URL}/api/servers/${serverId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updates),
+  });
+}
+
+export async function deleteServer(serverId) {
+  return safeJsonFetch(`${API_BASE_URL}/api/servers/${serverId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function generateServerToken(serverId) {
+  return safeJsonFetch(`${API_BASE_URL}/api/servers/${serverId}/token`, {
+    method: "POST",
+  });
+}
+
+export async function revokeServerKey(serverId) {
+  return safeJsonFetch(`${API_BASE_URL}/api/servers/${serverId}/revoke`, {
+    method: "POST",
+  });
+}
+
+// --------------------------------------------------
+// SYSTEM & CONTAINER TELEMETRY (SERVER-AWARE)
+// --------------------------------------------------
+
 /**
  * Fetch health & status of backend and AI engine
  */
@@ -71,9 +184,13 @@ export async function getBackendStatus() {
 
 /**
  * Fetch real-time system monitoring telemetry
+ * @param {string|null} serverId
  */
-export async function getSystemMetrics() {
-  const data = await safeJsonFetch(`${API_BASE_URL}/monitor/system`);
+export async function getSystemMetrics(serverId = null) {
+  const url = serverId && serverId !== "SRV-LOCAL-001"
+    ? `${API_BASE_URL}/monitor/system?server_id=${encodeURIComponent(serverId)}`
+    : `${API_BASE_URL}/monitor/system`;
+  const data = await safeJsonFetch(url);
   if (!data.cpu || !data.memory || !data.disk) {
     throw new Error("Invalid system metrics format returned from server.");
   }
@@ -82,9 +199,13 @@ export async function getSystemMetrics() {
 
 /**
  * Fetch Docker containers status and list
+ * @param {string|null} serverId
  */
-export async function getDockerMetrics() {
-  const data = await safeJsonFetch(`${API_BASE_URL}/monitor/docker`);
+export async function getDockerMetrics(serverId = null) {
+  const url = serverId && serverId !== "SRV-LOCAL-001"
+    ? `${API_BASE_URL}/monitor/docker?server_id=${encodeURIComponent(serverId)}`
+    : `${API_BASE_URL}/monitor/docker`;
+  const data = await safeJsonFetch(url);
   if (!Array.isArray(data.containers)) {
     throw new Error("Invalid Docker metrics format returned from server.");
   }
@@ -106,13 +227,17 @@ export async function analyzeLog({ problem = "", logFile = null }) {
     formData.append("log", logFile);
   }
 
+  const token = getStoredToken();
+  const headers = {
+    Accept: "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+
   let response;
   try {
     response = await fetch(`${API_BASE_URL}/analyze`, {
       method: "POST",
-      headers: {
-        Accept: "application/json",
-      },
+      headers,
       body: formData,
     });
   } catch (err) {
@@ -137,10 +262,12 @@ export async function analyzeLog({ problem = "", logFile = null }) {
  * @param {Object} reportData
  */
 export async function downloadPdfReport(reportData) {
+  const token = getStoredToken();
   const response = await fetch(`${API_BASE_URL}/download-report`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: JSON.stringify(reportData),
   });
@@ -168,17 +295,19 @@ export async function downloadPdfReport(reportData) {
 }
 
 // --------------------------------------------------
-// INCIDENT TIME MACHINE API FUNCTIONS
+// INCIDENT TIME MACHINE API FUNCTIONS (SERVER-AWARE)
 // --------------------------------------------------
 
 /**
- * List all incidents, optionally filtered by status
+ * List all incidents, optionally filtered by status and server
  * @param {string|null} status - "active" | "resolved" | null for all
  * @param {number} limit
+ * @param {string|null} serverId
  */
-export async function getIncidents(status = null, limit = 50) {
+export async function getIncidents(status = null, limit = 50, serverId = null) {
   const params = new URLSearchParams({ limit: String(limit) });
   if (status) params.set("status", status);
+  if (serverId) params.set("server_id", serverId);
   return safeJsonFetch(`${API_BASE_URL}/api/incidents?${params}`);
 }
 
@@ -253,23 +382,27 @@ export async function simulateIncident(scenario = "database_outage") {
 }
 
 /**
- * Fetch global historical metrics with optional time range
+ * Fetch historical metrics with optional time range and server filter
  * @param {string} range - "15m" | "1h" | "6h" | "24h"
  * @param {number} limit
+ * @param {string|null} serverId
  */
-export async function getMetricsHistory(range = "1h", limit = 500) {
+export async function getMetricsHistory(range = "1h", limit = 500, serverId = null) {
   const params = new URLSearchParams({ range, limit: String(limit) });
+  if (serverId) params.set("server_id", serverId);
   return safeJsonFetch(`${API_BASE_URL}/api/metrics/history?${params}`);
 }
 
 /**
- * Fetch the global timeline events
+ * Fetch timeline events with server filter
  * @param {Object} filters - { event_type, severity, limit }
+ * @param {string|null} serverId
  */
-export async function getGlobalTimeline(filters = {}) {
+export async function getGlobalTimeline(filters = {}, serverId = null) {
   const params = new URLSearchParams({ limit: String(filters.limit || 200) });
   if (filters.event_type) params.set("event_type", filters.event_type);
   if (filters.severity) params.set("severity", filters.severity);
+  if (serverId) params.set("server_id", serverId);
   return safeJsonFetch(`${API_BASE_URL}/api/timeline?${params}`);
 }
 

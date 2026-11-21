@@ -3,3 +3,12 @@ __pycache__/
 *.pyc
 
 backend/devpilot_history.db
+
+node_modules/
+.env
+.env.*
+!.env.example
+backups/
+data/
+logs/app.log
+

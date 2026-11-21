@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Activity,
   Cpu,
@@ -11,9 +12,13 @@ import {
   SlidersHorizontal
 } from "lucide-react";
 import MetricCard from "../components/MetricCard";
+import ServerSelector from "../components/ServerSelector";
 import { getSystemMetrics } from "../services/api";
 
 export default function SystemMonitoring() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const serverId = searchParams.get("server_id") || "SRV-LOCAL-001";
+
   const [metrics, setMetrics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -24,7 +29,7 @@ export default function SystemMonitoring() {
   const fetchMetrics = useCallback(async (isManual = false) => {
     if (isManual) setIsRefreshing(true);
     try {
-      const data = await getSystemMetrics();
+      const data = await getSystemMetrics(serverId);
       setMetrics(data);
       setError("");
       setLastUpdated(new Date());
@@ -36,14 +41,15 @@ export default function SystemMonitoring() {
         setTimeout(() => setIsRefreshing(false), 400);
       }
     }
-  }, []);
+  }, [serverId]);
 
   useEffect(() => {
     let ignore = false;
 
     const runInitialFetch = async () => {
       try {
-        const data = await getSystemMetrics();
+        setLoading(true);
+        const data = await getSystemMetrics(serverId);
         if (!ignore) {
           setMetrics(data);
           setError("");
@@ -74,7 +80,7 @@ export default function SystemMonitoring() {
       ignore = true;
       clearInterval(intervalId);
     };
-  }, [fetchMetrics, autoRefreshEnabled]);
+  }, [fetchMetrics, autoRefreshEnabled, serverId]);
 
   const formatGb = (val) => {
     const num = Number(val);
@@ -97,6 +103,12 @@ export default function SystemMonitoring() {
         </div>
 
         <div className="header-actions">
+          {/* Target Server Dropdown */}
+          <ServerSelector
+            selectedServerId={serverId}
+            onSelectServer={(newId) => setSearchParams({ server_id: newId })}
+          />
+
           {/* Auto Refresh Switch */}
           <button
             className={`control-pill ${autoRefreshEnabled ? "active-pill" : ""}`}
